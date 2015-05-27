@@ -7,7 +7,7 @@
         <ListBox ItemsSource="{Binding Actions}" DockPanel.Dock="Top" HorizontalContentAlignment="Stretch">
             <ListBox.ItemsPanel>
                 <ItemsPanelTemplate>
-                    <UniformGrid IsItemsHost="True" />
+                    <UniformGrid IsItemsHost="True" Columns="3" />
                 </ItemsPanelTemplate>
             </ListBox.ItemsPanel>
             <ListBox.ItemTemplate>

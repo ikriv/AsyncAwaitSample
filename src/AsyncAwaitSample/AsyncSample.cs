@@ -20,26 +20,30 @@ namespace AsyncAwaitSample
 
             Task.Run(() =>
             {
-                _logger.Log("Inside a task scheduled by Task.Run()");
+                _logger.Log("Begin task scheduled by Task.Run()");
                 PrintTaskScheduler();
+                _logger.Log("End task scheduled by Task.Run()");
             })
             .ContinueWith(task =>
             {
-                _logger.Log("Inside ContinueWith()");
+                _logger.Log("Begin task scheduled by Task.Run().ContinueWith()");
                 PrintTaskScheduler();
-            });
+                _logger.Log("End task scheduled by Task.Run().ContinueWith()");
+            })
+            .Wait();
 
             Task.Factory.StartNew(() =>
             {
-                _logger.Log("Inside a task scheduled on TaskScheduler.FromCurrentSynchronizationContext()");
+                _logger.Log("Begin task scheduled by TaskScheduler.FromCurrentSynchronizationContext()");
                 PrintTaskScheduler();
+                _logger.Log("End task scheduled by TaskScheduler.FromCurrentSynchronizationContext()");
             }, CancellationToken.None, TaskCreationOptions.None, TaskScheduler.FromCurrentSynchronizationContext());
         }
 
         private void PrintTaskScheduler()
         {
-            _logger.Log(String.Format("TaskScheduler.Current: {0}", SafeGetTypeName(TaskScheduler.Current)));
-            _logger.Log(String.Format("SynchronziationContext.Current: {0}", SafeGetTypeName(SynchronizationContext.Current)));
+            _logger.Log(String.Format("\tTaskScheduler.Current: {0}", SafeGetTypeName(TaskScheduler.Current)));
+            _logger.Log(String.Format("\tSynchronziationContext.Current: {0}", SafeGetTypeName(SynchronizationContext.Current)));
         }
 
         private string SafeGetTypeName(object obj)
@@ -100,27 +104,24 @@ namespace AsyncAwaitSample
         }
 
 
-        public async void CreateTask()
+        public async void CreateTaskWithSleep()
         {
-            _logger.Log("CreateTask() begin: calling MyTask()");
-            await MyTask();
+            _logger.Log("CreateTask() begin: calling await TaskWithSleep()");
+            await TaskWithSleep();
             _logger.Log("CreateTask() end");
         }
 
-        private async Task MyTask()
+        private async Task TaskWithSleep()
         {
-            var ts1 = TaskScheduler.Current;
             await Task.Delay(100);
-            var ts2 = TaskScheduler.Current;
-            var ts3 = TaskScheduler.FromCurrentSynchronizationContext();
 
-            _logger.Log("MyTask() begin");
+            _logger.Log("TaskWithSleep() begin");
             for (int i = 0; i < 5; ++i)
             {
-                _logger.Log("MyTask is hogging UI thread: " + i);
+                _logger.Log("TaskWithSleep is hogging UI thread: " + i);
                 Thread.Sleep(1000);
             }
-            _logger.Log("MyTask() end");
+            _logger.Log("TaskWithSleep() end");
         }
 
     }

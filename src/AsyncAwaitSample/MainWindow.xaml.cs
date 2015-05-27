@@ -30,7 +30,7 @@ namespace AsyncAwaitSample
                 sample.ShowTaskScheduler,
                 sample.AsyncVoid, 
                 sample.AsyncVoidWithSleep,
-                sample.CreateTask, 
+                sample.CreateTaskWithSleep, 
                 sample.AsyncVoidAsyncException, 
                 sample.AsyncVoidSyncException
             };

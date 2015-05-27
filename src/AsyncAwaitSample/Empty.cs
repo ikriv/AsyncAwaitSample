@@ -1,0 +1,6 @@
+﻿namespace AsyncAwaitSample
+{
+    class Empty
+    {
+    }
+}

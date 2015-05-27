@@ -22,8 +22,14 @@
             </ListBox.ItemTemplate>
         </ListBox>
         
-        <TextBlock DockPanel.Dock="Top" Margin="5,3,3,3" x:Name="TimerText" />    
-        
-        <ListBox ItemsSource="{Binding LogRecords}" FontFamily="Courier New"/>
+        <TextBlock DockPanel.Dock="Top" Margin="5,3,3,3" x:Name="TimerText" />
+
+        <ListBox ItemsSource="{Binding LogRecords}" FontFamily="Courier New" >
+            <ListBox.ContextMenu>
+                <ContextMenu>
+                    <MenuItem Header="Copy" Command="{Binding CopyCommand}"/>
+                </ContextMenu>
+            </ListBox.ContextMenu>
+        </ListBox>
     </DockPanel>
 </Window>

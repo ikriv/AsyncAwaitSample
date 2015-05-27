@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
 using System.Windows;
 using System.Windows.Data;
 using System.Windows.Input;
@@ -18,6 +19,7 @@ namespace AsyncAwaitSample
         public ObservableCollection<string> LogRecords { get; private set; }
         public IEnumerable<Action> Actions { get; private set; }
         public ICommand ClickCommand { get; private set; }
+        public ICommand CopyCommand { get; private set; }
         
 
         public MainWindow() 
@@ -36,6 +38,7 @@ namespace AsyncAwaitSample
             };
 
             ClickCommand = new Command<Action>(OnClick);
+            CopyCommand = new Command<Empty>(OnCopy);
 
 
             InitializeComponent();
@@ -79,6 +82,12 @@ namespace AsyncAwaitSample
             action();
             Log("Click handle end");
 
+        }
+
+        private void OnCopy(Empty unused)
+        {
+            var text = String.Join("\r\n", LogRecords);
+            Clipboard.SetData(DataFormats.UnicodeText, text);
         }
     }
 }

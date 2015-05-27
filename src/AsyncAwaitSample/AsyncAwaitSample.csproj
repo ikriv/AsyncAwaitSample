@@ -63,6 +63,7 @@
     </Compile>
     <Compile Include="AsyncSample.cs" />
     <Compile Include="Command.cs" />
+    <Compile Include="Empty.cs" />
     <Compile Include="ILogger.cs" />
     <Compile Include="MainWindow.xaml.cs">
       <DependentUpon>MainWindow.xaml</DependentUpon>

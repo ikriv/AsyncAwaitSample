@@ -13,43 +13,50 @@ namespace AsyncAwaitSample
             _logger = logger;
         }
 
-        public void ShowTaskScheduler()
+        public async void ShowTaskScheduler()
         {
             _logger.Log("UI thread outside any task:");
             PrintTaskScheduler();
 
-            Task.Run(() =>
-            {
-                _logger.Log("Begin task scheduled by Task.Run()");
-                PrintTaskScheduler();
-                _logger.Log("End task scheduled by Task.Run()");
-            })
-            .ContinueWith(task =>
-            {
-                _logger.Log("Begin task scheduled by Task.Run().ContinueWith()");
-                PrintTaskScheduler();
-                _logger.Log("End task scheduled by Task.Run().ContinueWith()");
-            })
-            .Wait();
+            Task.Run(() => MyTask("Task.Run()")).Wait();
 
-            Task.Factory.StartNew(() =>
-            {
-                _logger.Log("Begin task scheduled by TaskScheduler.FromCurrentSynchronizationContext()");
-                PrintTaskScheduler();
-                _logger.Log("End task scheduled by TaskScheduler.FromCurrentSynchronizationContext()");
-            }, CancellationToken.None, TaskCreationOptions.None, TaskScheduler.FromCurrentSynchronizationContext());
+            await PrintTaskSchedulerTask();
+        }
+
+        private void MyTask(string scheduledBy)
+        {
+            _logger.Log("Begin MyTask scheduled by " + scheduledBy);
+            PrintTaskScheduler();
+            _logger.Log("End MyTask scheduled by " + scheduledBy);
+            
+        }
+
+        private async Task PrintTaskSchedulerTask()
+        {
+            await Task.Delay(100); // make async
+            MyTask("await");
         }
 
         private void PrintTaskScheduler()
         {
-            _logger.Log(String.Format("\tTaskScheduler.Current: {0}", SafeGetTypeName(TaskScheduler.Current)));
-            _logger.Log(String.Format("\tSynchronziationContext.Current: {0}", SafeGetTypeName(SynchronizationContext.Current)));
+            _logger.Log(String.Format("\tTaskScheduler.Default: {0}", SafeGetTypeName(()=>TaskScheduler.Default)));
+            _logger.Log(String.Format("\tTaskScheduler.Current: {0}", SafeGetTypeName(()=>TaskScheduler.Current)));
+            _logger.Log(String.Format("\tTaskScheduler.FromCurrentSynchronizationContext(): {0}", SafeGetTypeName(TaskScheduler.FromCurrentSynchronizationContext)));
+            _logger.Log(String.Format("\tSynchronziationContext.Current: {0}", SafeGetTypeName(()=>SynchronizationContext.Current)));
         }
 
-        private string SafeGetTypeName(object obj)
+        private string SafeGetTypeName(Func<object> func)
         {
-            if (obj == null) return "null";
-            return obj.GetType().Name;
+            try
+            {
+                var obj = func();
+                if (obj == null) return "null";
+                return obj.GetType().Name;
+            }
+            catch
+            {
+                return "Exception!";
+            }
         }
 
         public async void AsyncVoid()

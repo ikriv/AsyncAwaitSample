@@ -96,7 +96,10 @@ namespace AsyncAwaitSample
         public async void AsyncVoidSyncException()
         {
             _logger.Log("AsyncVoidSyncException() begin: about to throw");
-            if (0<Math.Sqrt(1)) throw new ApplicationException("AsyncVoidAsyncException Error");
+
+            // "if" fools "unreachable code" detection in the compiler
+            if (0<Math.Sqrt(1)) throw new ApplicationException("AsyncVoidAsyncException Error"); 
+
             await Task.Delay(3000);
             _logger.Log("AsyncVoidSyncException() end");
         }
@@ -106,12 +109,14 @@ namespace AsyncAwaitSample
         {
             _logger.Log("AsyncVoidAsyncException() begin: calling Task.Delay()");
             await Task.Delay(3000);
-            if (0 < Math.Sqrt(1)) throw new ApplicationException("AsyncVoidAsyncException Error");
+
+            // "if" fools "unreachable code" detection in the compiler
+            if (0 < Math.Sqrt(1)) throw new ApplicationException("AsyncVoidAsyncException Error"); 
             _logger.Log("AsyncVoidAsyncException() end");
         }
 
 
-        public async void CreateTaskWithSleep()
+        public async void AwaitTaskWithSleep()
         {
             _logger.Log("CreateTask() begin: calling await TaskWithSleep()");
             await TaskWithSleep();
@@ -120,7 +125,7 @@ namespace AsyncAwaitSample
 
         private async Task TaskWithSleep()
         {
-            await Task.Delay(100);
+            await Task.Delay(100); // make asynchronous
 
             _logger.Log("TaskWithSleep() begin");
             for (int i = 0; i < 5; ++i)
@@ -130,6 +135,5 @@ namespace AsyncAwaitSample
             }
             _logger.Log("TaskWithSleep() end");
         }
-
     }
 }

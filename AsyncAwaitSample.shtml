@@ -1,0 +1,286 @@
+﻿<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+    <title>AsyncAwaitSample</title>
+    <link rel="stylesheet" type="text/css" href="/standard.css" />
+    <!--#include virtual="/header_style.inc"-->
+</head>
+<body>
+<!--#include virtual="/header.inc"-->
+<div id="main">
+
+<h1>AsyncAwaitSample: how async/await actually works</h1>
+<h2>Abstract</h2>
+
+<p><code>AsyncAwaitSample</code> is a collection of experiments around <code>async/await</code> feature of .NET.
+    It comes with nicely formatted log that shows who did what when. It is extensible: you can esaily add your
+    own experiments that answer your "what happens if" questions.
+    
+    Async/await has been a topic of many texts, but I strongly believe that experimental evidence is key to understanding
+    any technology. You don't totally get it until you play with it and solve "What hapens if" riddles by
+    actually trying them in code rather than by theoretical reasoning.</p>
+    
+<p><a href="https://github.com/ikriv/AsyncAwaitSample">AsyncAwaitSample on GitHub</a></p>
+<p><a href="https://github.com/ikriv/AsyncAwaitSample/archive/master.zip">Download source code as ZIP</a></p>
+
+<img src="AsyncAwaitSample.jpg" alt="AsyncAwaitSample screenshot"/>
+    
+
+
+<h2>Application Controls</h2>
+
+<p>The button panel on top is a list of available samples. Click on a sample to execute it. The text on a button
+corresponds to the name of a method in <code>AsyncSample</code> class, e.g. "AsyncVoid" runs <code>AsyncSample.AsyncVoid()</code>.</p>
+
+<p>The next row is occupied by the timer. If the timer is ticking, the UI thread has not been frozen. If the timer stops, the UI thread
+has been "hijacked" by a long running process and the user interface is frozen.</p>
+    
+<p>Below the timer is the log. It shows time of the event, the thread that logged the event and the log text.
+This log allows you to see what thread did what and when. Right click on the log and select "copy" to copy its contents to clipboard.</p> 
+
+<h2>Samples</h2>
+
+<h3>ShowTaskScheduler</h3>
+
+<p>Task scheduler is a confusing concept in .NET. At any particular moment you have</p>
+<ul>
+    <li><code>TaskScheduler.Default</code> - thread pool task scheduler, used by <code>Task.Run()</code>.</li>
+    <li><code>TaskScheduler.Current</code> - task scheduler that will be used by <code>Task.Start()</code> by default.</li>
+    <li><code>TaskScheduler.FromCurrentSynchronizationContext()</code> - task scheduler based on current <a href="https://msdn.microsoft.com/en-us/magazine/gg598924.aspx">SynchronizationContext</a>. </li>
+</ul>
+
+<p>The relationship between <code>async/await</code>, synchronization contexts and task schedulers is complex, and things
+can sometimes get <a href="http://stackoverflow.com/questions/20942253/default-synchronizationcontext-vs-default-taskscheduler">quite hairy</a>.</p>
+
+<p>Important thing to remember is that <code>await</code> will start the task using current synchronization context (i.e. on UI thread if you
+await from the UI thread), but it does not change <code>TaskScheduler.Default</code> or <code>TaskScheduler.Current</code>.</p>
+
+<pre class="codepre">23:41:40 [UI Thread] Click handle begin
+23:41:40 [UI Thread] UI thread outside any task:
+23:41:40 [UI Thread] 	TaskScheduler.Default: ThreadPoolTaskScheduler
+23:41:40 [UI Thread] 	TaskScheduler.Current: ThreadPoolTaskScheduler
+23:41:40 [UI Thread] 	TaskScheduler.FromCurrentSynchronizationContext(): SynchronizationContextTaskScheduler
+23:41:40 [UI Thread] 	SynchronziationContext.Current: DispatcherSynchronizationContext
+23:41:40 [Worker 03] Begin MyTask scheduled by Task.Run()
+23:41:40 [Worker 03] 	TaskScheduler.Default: ThreadPoolTaskScheduler
+23:41:40 [Worker 03] 	TaskScheduler.Current: ThreadPoolTaskScheduler
+23:41:40 [Worker 03] 	TaskScheduler.FromCurrentSynchronizationContext(): Exception!
+23:41:40 [Worker 03] 	SynchronziationContext.Current: null
+23:41:40 [Worker 03] End MyTask scheduled by Task.Run()
+23:41:40 [UI Thread] Click handle end
+23:41:40 [UI Thread] Begin MyTask scheduled by await
+23:41:40 [UI Thread] 	TaskScheduler.Default: ThreadPoolTaskScheduler
+23:41:40 [UI Thread] 	TaskScheduler.Current: ThreadPoolTaskScheduler
+23:41:40 [UI Thread] 	TaskScheduler.FromCurrentSynchronizationContext(): SynchronizationContextTaskScheduler
+23:41:40 [UI Thread] 	SynchronziationContext.Current: DispatcherSynchronizationContext
+23:41:40 [UI Thread] End MyTask scheduled by await</pre>
+
+<h3>AsyncVoid</h3>
+
+    <p>This sample demonstrates what happens when <code>async void</code> method is called. The method returns to caller when it encounters its first <code>await</code>
+        clause, and the rest of the method is scheduled to run later. If the method is called on UI thread, all its parts are executed on UI thread.
+    </p>
+    <table class="codetable">
+        <tr>
+            <td>
+                <pre><span style="color:blue;">public</span> <span style="color:blue;">async</span> <span style="color:blue;">void</span> AsyncVoid()
+{
+    _logger.Log(<span style="color:#a31515;">&quot;AsyncVoid() begin&quot;</span>);
+
+    _logger.Log(<span style="color:#a31515;">&quot;await Task.Delay(3000)&quot;</span>);
+    <span style="color:blue;">await</span> <span style="color:#2b91af;">Task</span>.Delay(3000);
+    _logger.Log(<span style="color:#a31515;">&quot;await returned&quot;</span>);
+
+    _logger.Log(<span style="color:#a31515;">&quot;AsyncVoid() end&quot;</span>);
+}
+</pre>
+                    
+                <pre class="codepre">23:47:54 [UI Thread] Click handle begin
+23:47:54 [UI Thread] AsyncVoid() begin
+23:47:54 [UI Thread] await Task.Delay(3000)
+23:47:54 [UI Thread] Click handle end
+23:47:57 [UI Thread] await returned
+23:47:57 [UI Thread] AsyncVoid() end</pre>
+            </td>
+        </tr>
+    </table>
+    
+    <h3>AsyncVoidWithSleep</h3>
+    <p>When <code>async void</code> method is executed on the UI thread, <code>Thread.Sleep()</code> in any part of the method will block the UI thread.
+        On the other hand, <code>await Task.Delay(...)</code> will not block the UI thread. Any blocking call or lots of CPU bound work will have the same
+        effect as <code>Thread.Sleep()</code>.
+        In the code below the timer freezes twice for 3 seconds:
+    </p>
+
+    <table class="codetable">
+        <tr>
+            <td>
+                <pre><span style="color:blue;">public</span> <span style="color:blue;">async</span> <span style="color:blue;">void</span> AsyncVoidWithSleep()
+{
+    _logger.Log(<span style="color:#a31515;">&quot;AsyncVoidWithSleep() begin&quot;</span>);
+
+    _logger.Log(<span style="color:#a31515;">&quot;Thread.Sleep(3000)&quot;</span>);
+    <span style="color:#2b91af;">Thread</span>.Sleep(3000);
+
+    _logger.Log(<span style="color:#a31515;">&quot;await Task.Delay(3000)&quot;</span>);
+    <span style="color:blue;">await</span> <span style="color:#2b91af;">Task</span>.Delay(3000);
+    _logger.Log(<span style="color:#a31515;">&quot;await returned&quot;</span>);
+
+    _logger.Log(<span style="color:#a31515;">&quot;Thread.Sleep(3000)&quot;</span>);
+    <span style="color:#2b91af;">Thread</span>.Sleep(3000);
+
+    _logger.Log(<span style="color:#a31515;">&quot;AsyncVoidWithSleep() end&quot;</span>);
+}
+</pre>
+            </td>
+        </tr>
+    </table>
+    
+<pre class="codepre">23:55:26 [UI Thread] Click handle begin
+23:55:26 [UI Thread] AsyncVoidWithSleep() begin
+23:55:26 [UI Thread] Thread.Sleep(3000)
+<span style="color:green">-- UI thread freezes for 3 seconds</span>
+23:55:29 [UI Thread] await Task.Delay(3000)
+23:55:29 [UI Thread] Click handle end
+23:55:32 [UI Thread] await returned
+23:55:32 [UI Thread] Thread.Sleep(3000)
+<span style="color:green">-- UI thread freezes for 3 seconds</span>
+23:55:35 [UI Thread] AsyncVoidWithSleep() end</pre>
+
+    <h2>AwaitTaskWithSleep</h2>
+    
+    <p>Continuing on the previous theme: awaiting on a task that contains <code>Thread.Sleep()</code>, a blocking call or lots of CPU bound work
+    will cause the UI thread to freeze.</p>
+        <table class="codetable">
+            <tr>
+                <td>
+                    <pre><span style="color:blue;">public</span> <span style="color:blue;">async</span> <span style="color:blue;">void</span> AwaitTaskWithSleep()
+{
+    _logger.Log(<span style="color:#a31515;">&quot;CreateTask() begin: calling await TaskWithSleep()&quot;</span>);
+    <span style="color:blue;">await</span> TaskWithSleep();
+    _logger.Log(<span style="color:#a31515;">&quot;CreateTask() end&quot;</span>);
+}
+
+<span style="color:blue;">private</span> <span style="color:blue;">async</span> <span style="color:#2b91af;">Task</span> TaskWithSleep()
+{
+    <span style="color:blue;">await</span> <span style="color:#2b91af;">Task</span>.Delay(100); <span style="color:green;">// make asynchronous</span>
+
+    _logger.Log(<span style="color:#a31515;">&quot;TaskWithSleep() begin&quot;</span>);
+    <span style="color:blue;">for</span> (<span style="color:blue;">int</span> i = 0; i &lt; 5; ++i)
+    {
+        _logger.Log(<span style="color:#a31515;">&quot;TaskWithSleep is hogging UI thread: &quot;</span> + i);
+        <span style="color:#2b91af;">Thread</span>.Sleep(1000);
+    }
+    _logger.Log(<span style="color:#a31515;">&quot;TaskWithSleep() end&quot;</span>);
+}
+
+</pre>
+                </td>
+            </tr>
+        </table>
+    
+    <pre class="codepre">00:04:18 [UI Thread] Click handle begin
+00:04:18 [UI Thread] CreateTask() begin: calling await TaskWithSleep()
+00:04:18 [UI Thread] Click handle end
+00:04:18 [UI Thread] TaskWithSleep() begin
+<span style="color:green">-- UI thread freezes for 5 seconds</span>
+00:04:18 [UI Thread] TaskWithSleep is hogging UI thread: 0
+00:04:19 [UI Thread] TaskWithSleep is hogging UI thread: 1
+00:04:20 [UI Thread] TaskWithSleep is hogging UI thread: 2
+00:04:21 [UI Thread] TaskWithSleep is hogging UI thread: 3
+00:04:22 [UI Thread] TaskWithSleep is hogging UI thread: 4
+00:04:23 [UI Thread] TaskWithSleep() end
+00:04:23 [UI Thread] CreateTask() end</pre>
+    
+    <h3>AsyncVoidAsyncException</h3>
+    <p>We all heard that an exception thrown in an <code>async void</code> does not get propagated to the caller. Let's test it:</p>
+
+    <table class="codetable">
+        <tr>
+            <td>
+                <pre><span style="color:blue;">public</span> <span style="color:blue;">async</span> <span style="color:blue;">void</span> AsyncVoidAsyncException()
+{
+    _logger.Log(<span style="color:#a31515;">&quot;AsyncVoidAsyncException() begin: calling Task.Delay()&quot;</span>);
+    <span style="color:blue;">await</span> <span style="color:#2b91af;">Task</span>.Delay(3000);
+
+    <span style="color:green;">// &quot;if&quot; fools &quot;unreachable code&quot; detection in the compiler</span>
+    <span style="color:blue;">if</span> (0 &lt; <span style="color:#2b91af;">Math</span>.Sqrt(1)) <span style="color:blue;">throw</span> <span style="color:blue;">new</span> <span style="color:#2b91af;">ApplicationException</span>(<span style="color:#a31515;">&quot;AsyncVoidAsyncException Error&quot;</span>); 
+    _logger.Log(<span style="color:#a31515;">&quot;AsyncVoidAsyncException() end&quot;</span>);
+}
+</pre>
+            </td>
+        </tr>
+    </table>
+
+<pre class="codepre">00:11:26 [UI Thread] Click handle begin
+00:11:26 [UI Thread] AsyncVoidAsyncException() begin: calling Task.Delay()
+00:11:26 [UI Thread] Click handle end</pre>    
+    
+    <p>As you can see, the caller ends normally, and exception is then thrown on the UI thread after 3 seconds (not visible in the log).</p>
+    
+    <h3>AsyncVoidSyncException</h3>
+    <p>What happens if we throw exception in the <i>synchronous</i> part of an <code>async void</code> method, before the fisrt await?</p>
+
+
+    <table class="codetable">
+        <tr>
+            <td>
+                <pre><span style="color:blue;">public</span> <span style="color:blue;">async</span> <span style="color:blue;">void</span> AsyncVoidSyncException()
+{
+    _logger.Log(<span style="color:#a31515;">&quot;AsyncVoidSyncException() begin: about to throw&quot;</span>);
+
+    <span style="color:green;">// &quot;if&quot; fools &quot;unreachable code&quot; detection in the compiler</span>
+    <span style="color:blue;">if</span> (0&lt;<span style="color:#2b91af;">Math</span>.Sqrt(1)) <span style="color:blue;">throw</span> <span style="color:blue;">new</span> <span style="color:#2b91af;">ApplicationException</span>(<span style="color:#a31515;">&quot;AsyncVoidAsyncException Error&quot;</span>);
+
+    <span style="color:blue;">await</span> <span style="color:#2b91af;">Task</span>.Delay(3000);
+    _logger.Log(<span style="color:#a31515;">&quot;AsyncVoidSyncException() end&quot;</span>);
+}
+</pre>
+            </td>
+        </tr>
+    </table>
+    
+    <pre class="codepre">00:14:16 [UI Thread] Click handle begin
+00:14:16 [UI Thread] AsyncVoidSyncException() begin: about to throw
+00:14:16 [UI Thread] Click handle end</pre>
+    
+    <p>As you can see, the method returns normally. The exception is scheduled to be thrown on the UI thread just like in the asynchronous case. Surprise!</p>
+    
+    <h2>Extending AsyncAwaitSample</h2>
+    
+    <p>To extend <code>AsyncAwaitSample</code> follow two simple steps:</p>
+    <ol>
+        <li>Add new method to <code>AsyncSample</code> class. Use <code>_logger.Log()</code> to output messages.</li>
+        <li>Add your method to the <code>Actions</code> array in <code>MainWindow</code> constructor in <code>MainWindow.xaml.cs</code>.</li>
+    </ol>
+    
+    <p>That's it! You're going to get a new button named after your method. Clicking the button invokes the method. Use right click &rarr; Copy to copy the log to clipboard.</p>
+
+
+    <h2>Feedback</h2>
+    <p>Questions? Comments? Feel free to <br />
+        <a href="/feedback.php?subj=Comment%20on%20AsyncAwaitSample" target="new">Leave feedback</a>
+    </p>
+
+    <hr/>
+
+    <table border="0" cellspacing="0" cellpadding="0" width="100%" class="Copyright">
+    <tr>
+        <td align="left"><a href="/en/prog/index.html">Programming Tools & Info</a></td>
+        <td align="right">
+        Copyright (c) Ivan Krivyakov. Last updated: Aug 16, 2014
+        </td>
+    </tr>
+    </table>
+
+</div>
+<script src="http://www.google-analytics.com/urchin.js" type="text/javascript">
+</script>
+<script type="text/javascript">
+_uacct = "UA-973397-1";
+urchinTracker();
+</script>
+
+</body>
+</html>
+

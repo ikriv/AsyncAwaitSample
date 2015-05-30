@@ -88,10 +88,6 @@ namespace AsyncAwaitSample
             _logger.Log("AsyncVoidWithSleep() end");
         }
 
-        public void JustException()
-        {
-            if (0 < Math.Sqrt(1)) throw new ApplicationException("JustException Error");
-        }
 
         public async void AsyncVoidSyncException()
         {

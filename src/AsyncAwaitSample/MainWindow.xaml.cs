@@ -34,7 +34,7 @@ namespace AsyncAwaitSample
                 sample.AsyncVoidWithSleep,
                 sample.AwaitTaskWithSleep, 
                 sample.AsyncVoidAsyncException, 
-                sample.AsyncVoidSyncException
+                sample.AsyncVoidSyncException,
             };
 
             ClickCommand = new Command<Action>(OnClick);
